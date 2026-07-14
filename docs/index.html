@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude Desktop Indicator — see your mode &amp; model at a glance</title>
+<meta name="description" content="A tiny always-on-top Windows indicator that shows which mode (Chat/Cowork/Code) and which model Claude Desktop is currently using. Read-only, open source, MIT.">
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --text: #1a2230; --muted: #5b6572;
+    --border: #e3e6ea; --accent: #0e7490; --code-bg: #eef1f4;
+    --chat: #1E40AF; --cowork: #7C3AED; --codeM: #0E7490;
+    --opus: #DC2626; --sonnet: #EA580C; --haiku: #16A34A; --fable: #CA8A04;
+    --unknown: #6B7280;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #10151c; --card: #171e27; --text: #e8ecf1; --muted: #98a2ae;
+      --border: #263040; --accent: #38bdf8; --code-bg: #0d1117;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 16px/1.6 "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  main { max-width: 960px; margin: 0 auto; padding: 0 20px 80px; }
+  a { color: var(--accent); }
+  h1 { font-size: 2.1rem; line-height: 1.2; }
+  h2 { font-size: 1.4rem; margin: 56px 0 16px; }
+  p  { margin: 12px 0; }
+  .muted { color: var(--muted); }
+
+  header.hero {
+    display: flex; flex-wrap: wrap; gap: 40px; align-items: center;
+    padding: 64px 0 24px;
+  }
+  .hero-text { flex: 1 1 380px; }
+  .tagline { font-size: 1.12rem; color: var(--muted); margin-top: 14px; }
+  .cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 26px; }
+  .btn {
+    display: inline-block; padding: 10px 18px; border-radius: 8px;
+    text-decoration: none; font-weight: 600; border: 1px solid var(--border);
+  }
+  .btn.primary { background: var(--accent); color: #fff; border-color: transparent; }
+  .btn.ghost { color: var(--text); background: var(--card); }
+
+  .demo { flex: 0 0 auto; text-align: center; }
+  .demo svg { border-radius: 10px; box-shadow: 0 12px 34px rgba(0,0,0,.25); display: block; }
+  .demo-controls { margin-top: 18px; display: grid; gap: 8px; justify-items: center; }
+  .seg { display: inline-flex; background: var(--card); border: 1px solid var(--border); border-radius: 999px; padding: 3px; }
+  .seg button {
+    border: 0; background: transparent; color: var(--muted); font: inherit;
+    font-size: .85rem; font-weight: 600; padding: 5px 14px; border-radius: 999px; cursor: pointer;
+  }
+  .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+  .demo-hint { font-size: .8rem; color: var(--muted); }
+
+  .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px;
+  }
+  .card h3 { font-size: 1.02rem; margin-bottom: 6px; }
+  .card p { font-size: .92rem; color: var(--muted); margin: 0; }
+
+  .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 4px; vertical-align: -2px; margin-right: 8px; }
+  table { border-collapse: collapse; width: 100%; margin: 14px 0; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); font-size: .95rem; }
+  th { color: var(--muted); font-weight: 600; font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; }
+  .shape-cell svg { vertical-align: -6px; margin-right: 8px; }
+
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; overflow-x: auto; font-size: .88rem; line-height: 1.5; margin: 14px 0;
+  }
+  code { font-family: Consolas, "Cascadia Code", monospace; }
+  ol li, ul li { margin: 6px 0; }
+
+  footer {
+    margin-top: 72px; padding-top: 24px; border-top: 1px solid var(--border);
+    font-size: .88rem; color: var(--muted);
+  }
+  @media (max-width: 700px) { header.hero { padding-top: 36px; } h1 { font-size: 1.7rem; } }
+</style>
+</head>
+<body>
+<main>
+
+<header class="hero">
+  <div class="hero-text">
+    <h1>Claude Desktop Indicator</h1>
+    <p class="tagline">A tiny always-on-top window for Windows that shows which
+    <strong>mode</strong> (Chat / Cowork / Code) and which <strong>model</strong>
+    Claude&nbsp;Desktop is using right now — readable from the corner of your eye.</p>
+    <div class="cta-row">
+      <a class="btn primary" href="https://github.com/pawelpc/claude-desktop-indicator">View on GitHub</a>
+      <a class="btn ghost" href="#install">Install</a>
+    </div>
+  </div>
+
+  <div class="demo">
+    <svg id="indicator" width="240" height="240" viewBox="0 0 240 240" role="img" aria-label="Indicator preview">
+      <rect id="ind-bg" width="240" height="240" fill="#0E7490"/>
+      <g id="ind-shape"></g>
+      <text id="ind-version" x="120" y="104" fill="#fff" font-family="Segoe UI, sans-serif"
+            font-size="44" font-weight="bold" text-anchor="middle" dominant-baseline="central">5</text>
+      <text id="ind-summary" x="120" y="212" fill="#fff" font-family="Segoe UI, sans-serif"
+            font-size="15" text-anchor="middle">Code · Fable 5</text>
+    </svg>
+    <div class="demo-controls">
+      <div class="seg" id="mode-seg" role="group" aria-label="Mode">
+        <button data-mode="chat">Chat</button>
+        <button data-mode="cowork">Cowork</button>
+        <button data-mode="code" aria-pressed="true">Code</button>
+      </div>
+      <div class="seg" id="family-seg" role="group" aria-label="Model family">
+        <button data-family="opus">Opus</button>
+        <button data-family="sonnet">Sonnet</button>
+        <button data-family="haiku">Haiku</button>
+        <button data-family="fable" aria-pressed="true">Fable</button>
+      </div>
+      <span class="demo-hint">Try it — this is exactly what the real window shows.</span>
+    </div>
+  </div>
+</header>
+
+<section class="grid" aria-label="Highlights">
+  <div class="card"><h3>Peripheral-vision fast</h3>
+    <p>Cool background colors for modes, warm shapes for model families — the two
+    channels never collide, so you don't need to read anything.</p></div>
+  <div class="card"><h3>Read-only by design</h3>
+    <p>Detection uses Windows UI Automation — the same public accessibility API
+    screen readers use. No injection, no network sniffing, no internals.</p></div>
+  <div class="card"><h3>Stays out of the way</h3>
+    <p>Frameless, hidden from the taskbar and Alt-Tab, draggable anywhere,
+    remembers its spot — on any monitor.</p></div>
+  <div class="card"><h3>One double-click</h3>
+    <p>The shortcut starts Claude Desktop if needed (Store or direct install)
+    and the indicator follows it — closing itself when the app closes.</p></div>
+</section>
+
+<h2 id="encoding">The visual encoding</h2>
+<p>Three data dimensions, three visual channels:</p>
+
+<table>
+  <thead><tr><th>Background → mode</th><th>Color</th></tr></thead>
+  <tbody>
+    <tr><td><span class="swatch" style="background:#1E40AF"></span>Chat</td><td><code>#1E40AF</code> deep blue</td></tr>
+    <tr><td><span class="swatch" style="background:#7C3AED"></span>Cowork</td><td><code>#7C3AED</code> violet</td></tr>
+    <tr><td><span class="swatch" style="background:#0E7490"></span>Code</td><td><code>#0E7490</code> teal</td></tr>
+  </tbody>
+</table>
+
+<table>
+  <thead><tr><th>Center shape → model family</th><th>Color</th></tr></thead>
+  <tbody>
+    <tr><td class="shape-cell"><svg width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="9" fill="#DC2626"/></svg>Opus — circle</td><td><code>#DC2626</code> red</td></tr>
+    <tr><td class="shape-cell"><svg width="20" height="20" viewBox="0 0 20 20"><polygon points="10,1 19,10 10,19 1,10" fill="#EA580C"/></svg>Sonnet — diamond</td><td><code>#EA580C</code> orange</td></tr>
+    <tr><td class="shape-cell"><svg width="20" height="20" viewBox="0 0 20 20"><polygon points="10,1 19,17.5 1,17.5" fill="#16A34A"/></svg>Haiku — triangle</td><td><code>#16A34A</code> green</td></tr>
+    <tr><td class="shape-cell"><svg width="20" height="20" viewBox="0 0 20 20"><polygon points="10,1 18.6,7.2 15.3,17.3 4.7,17.3 1.4,7.2" fill="#CA8A04"/></svg>Fable — pentagon</td><td><code>#CA8A04</code> gold</td></tr>
+  </tbody>
+</table>
+
+<p>The <strong>version number</strong> ("4.8", "5", …) is drawn inside the shape, and a
+plain-text summary sits underneath. Anything that can't be read shows as a gray
+"?" instead — the indicator never crashes because a UI element moved.</p>
+
+<h2 id="install">Install</h2>
+<p><strong>Requirements:</strong> Windows 10 (1903+) or 11 · Claude Desktop ·
+Python 3.10+ if running from source.</p>
+<pre><code>git clone https://github.com/pawelpc/claude-desktop-indicator
+cd claude-desktop-indicator
+pip install -r requirements.txt
+python src/main.py</code></pre>
+<p>Or build a standalone exe and point a desktop shortcut at it:</p>
+<pre><code>pip install pyinstaller
+pyinstaller --onefile --noconsole --name ClaudeIndicator --icon assets/icon.ico src/main.py</code></pre>
+<p>Full instructions — including the shortcut snippet and flags like
+<code>--no-launch</code> — are in the
+<a href="https://github.com/pawelpc/claude-desktop-indicator#readme">README</a>.</p>
+
+<h2 id="how">How it works</h2>
+<p>A background thread polls the Claude Desktop window's accessibility tree every
+500&nbsp;ms through Windows UI Automation and reads three public signals: the
+sidebar's Home/Code pills (via <code>aria-current</code>), the composer's
+Chat/Cowork toggle or the page URL (depending on whether the session has
+started), and the composer's model selector button. State changes redraw the
+240×240 window in under a second.</p>
+<p>Nothing is written, clicked, injected, intercepted, or transmitted — the tool
+observes exactly what a screen reader could, and stores nothing but its own
+window position in a local <code>config.json</code>.</p>
+
+<footer>
+  <p>MIT licensed · <a href="https://github.com/pawelpc/claude-desktop-indicator">Source on GitHub</a></p>
+  <p>An independent open-source utility. Not affiliated with or endorsed by
+  Anthropic; "Claude" is a trademark of Anthropic, PBC.</p>
+</footer>
+
+</main>
+
+<script>
+(function () {
+  var COLORS = { chat: "#1E40AF", cowork: "#7C3AED", code: "#0E7490" };
+  var FAMILIES = {
+    opus:   { fill: "#DC2626", version: "4.8" },
+    sonnet: { fill: "#EA580C", version: "5" },
+    haiku:  { fill: "#16A34A", version: "4.5" },
+    fable:  { fill: "#CA8A04", version: "5" }
+  };
+  var state = { mode: "code", family: "fable" };
+
+  function polygon(cx, cy, r, sides) {
+    var pts = [];
+    for (var i = 0; i < sides; i++) {
+      var a = (-90 + i * 360 / sides) * Math.PI / 180;
+      pts.push((cx + r * Math.cos(a)).toFixed(1) + "," + (cy + r * Math.sin(a)).toFixed(1));
+    }
+    return pts.join(" ");
+  }
+
+  function shapeMarkup(family) {
+    var f = FAMILIES[family], cx = 120, cy = 104, r = 68, ns = "http://www.w3.org/2000/svg";
+    var el;
+    if (family === "opus") {
+      el = document.createElementNS(ns, "circle");
+      el.setAttribute("cx", cx); el.setAttribute("cy", cy); el.setAttribute("r", r);
+    } else {
+      el = document.createElementNS(ns, "polygon");
+      var sides = family === "sonnet" ? 4 : family === "haiku" ? 3 : 5;
+      el.setAttribute("points", polygon(cx, cy, r, sides));
+    }
+    el.setAttribute("fill", f.fill);
+    return el;
+  }
+
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  function render() {
+    var f = FAMILIES[state.family];
+    document.getElementById("ind-bg").setAttribute("fill", COLORS[state.mode]);
+    var g = document.getElementById("ind-shape");
+    while (g.firstChild) g.removeChild(g.firstChild);
+    g.appendChild(shapeMarkup(state.family));
+    var v = document.getElementById("ind-version");
+    v.textContent = f.version;
+    v.setAttribute("y", state.family === "haiku" ? 118 : 104);
+    document.getElementById("ind-summary").textContent =
+      cap(state.mode) + " · " + cap(state.family) + " " + f.version;
+  }
+
+  function wire(segId, attr) {
+    var seg = document.getElementById(segId);
+    seg.addEventListener("click", function (e) {
+      var btn = e.target.closest("button");
+      if (!btn) return;
+      state[attr] = btn.dataset[attr];
+      seg.querySelectorAll("button").forEach(function (b) {
+        b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+      });
+      render();
+    });
+  }
+  wire("mode-seg", "mode");
+  wire("family-seg", "family");
+  render();
+})();
+</script>
+</body>
+</html>

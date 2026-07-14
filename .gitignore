@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# Local state
+config.json
+
+# Project-internal planning docs (not part of the published tool)
+_context/
+_team-lead-brief.md
+_launch-prompt.md
