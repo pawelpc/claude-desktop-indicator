@@ -1,5 +1,7 @@
 # Claude Desktop Indicator
 
+**Project site: [pawelpc.github.io/claude-desktop-indicator](https://pawelpc.github.io/claude-desktop-indicator/)** — with an interactive preview of the indicator.
+
 A small (240x240 px), always-on-top Windows indicator that shows at a glance
 which mode (Chat / Cowork / Code) and which model (family + version) Claude
 Desktop is currently set to. The window background color encodes the mode, a
