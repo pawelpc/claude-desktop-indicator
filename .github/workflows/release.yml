@@ -1,0 +1,93 @@
+# Release pipeline: test -> build -> sign (SignPath Foundation) -> publish.
+#
+# DRAFT until the Phase 3 STOP GATE clears (SignPath Foundation approval).
+# Prerequisites before the first live run:
+#   - Repository secrets (Settings -> Secrets and variables -> Actions):
+#       SIGNPATH_API_TOKEN        API token of a SignPath user with the
+#                                 Submitter role on the signing policy
+#       SIGNPATH_ORGANIZATION_ID  SignPath organization ID (a GUID)
+#   - The SignPath GitHub App installed on this repository.
+# No real SignPath IDs appear in this file by design; both live only in
+# repository secrets. See _context/phase3-signpath-handoff.md (untracked).
+
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      # Never sign a broken build. The suite opens brief real Tk windows
+      # (tkinter has no headless mode on Windows); windows-latest runners
+      # provide a desktop session, so this runs unchanged.
+      - name: Run tests
+        run: python -m unittest discover tests -v
+
+      # Same command as the Phase 2 handoff / README. The .spec file is
+      # gitignored, so the CLI command is the single source of truth here.
+      - name: Build exe
+        run: pyinstaller --onefile --noconsole --name ClaudeIndicator --icon assets/icon.ico src/main.py
+
+      - name: Upload unsigned artifact
+        id: upload-unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: ClaudeIndicator-unsigned
+          path: dist/ClaudeIndicator.exe
+          if-no-files-found: error
+
+      - name: Submit to SignPath for signing
+        uses: signpath/github-action-submit-signing-request@v2
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ secrets.SIGNPATH_ORGANIZATION_ID }}
+          # Proposed slugs — confirm against the provisioned SignPath
+          # project after Foundation approval (see handoff doc, section D).
+          project-slug: claude-desktop-indicator
+          signing-policy-slug: release-signing
+          github-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed
+
+      # Fail loudly if the signature is anything but Valid — do not publish
+      # an unsigned or badly signed exe. Searches recursively in case the
+      # signed artifact preserves a directory layout (dry run will confirm).
+      - name: Verify Authenticode signature
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem -Path signed -Recurse -Filter ClaudeIndicator.exe | Select-Object -First 1
+          if (-not $exe) { throw "Signed ClaudeIndicator.exe not found under signed/" }
+          $sig = Get-AuthenticodeSignature $exe.FullName
+          $sig | Format-List Status, StatusMessage
+          $sig.SignerCertificate | Format-List Subject, Issuer, NotAfter
+          if ($sig.Status -ne 'Valid') { throw "Signature status is '$($sig.Status)', expected 'Valid'" }
+          New-Item -ItemType Directory -Force release-assets | Out-Null
+          Copy-Item $exe.FullName release-assets/ClaudeIndicator.exe
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/ClaudeIndicator.exe
+          generate_release_notes: true
+          # Tags like v0.9.0-rc1 publish as pre-releases (used for dry runs).
+          prerelease: ${{ contains(github.ref_name, '-') }}
