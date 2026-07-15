@@ -14,4 +14,4 @@ config.json
 # Project-internal planning docs (not part of the published tool)
 _context/
 _team-lead-brief.md
-_launch-prompt.md
+_launch-prompt*.md
