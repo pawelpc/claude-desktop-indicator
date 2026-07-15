@@ -146,6 +146,19 @@ python -m unittest discover tests
 Tests mock the accessibility tree, so they run without Claude Desktop
 present.
 
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io/),
+certificate by [SignPath Foundation](https://signpath.org/).
+
+- Committers and reviewers: [Paul Pawelski (@pawelpc)](https://github.com/pawelpc)
+- Approvers: [Paul Pawelski (@pawelpc)](https://github.com/pawelpc)
+
+Privacy policy: this program will not transfer any information to other
+networked systems unless specifically requested by the user or the person
+installing or operating it. See [Privacy & Anthropic ToS](#privacy--anthropic-tos)
+above for details on exactly what it reads and stores.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
